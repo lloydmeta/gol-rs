@@ -1,4 +1,4 @@
-# Game of Life
+# Game of Life [![Build Status](https://travis-ci.org/lloydmeta/gol-rs.svg?branch=master)](https://travis-ci.org/lloydmeta/gol-rs)
 
 Conway's Game of Life implemented in Rust and OpenGL via [`gfx-rs`](https://github.com/gfx-rs).
 
@@ -7,7 +7,7 @@ Done as an exercise to practise Rust and get my feet with with OpenGL.
 Areas explored:
   * General rendering
   * Vertex, fragment shaders
-  * [Pipline state objects](https://gfx-rs.github.io/2016/01/22/pso.html)
+  * [Pipeline state objects](https://gfx-rs.github.io/2016/01/22/pso.html)
 
 ![gol running](gol.gif)
 
@@ -26,3 +26,6 @@ OPTIONS:
 
 If running via `cargo`, options need to be passed by appending `--`, i.e. `cargo run -- -h 10 -w 10`.
 
+## Todo
+
+  * Optimise!
