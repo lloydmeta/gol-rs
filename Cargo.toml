@@ -1,0 +1,22 @@
+[package]
+name = "gol"
+version = "0.1.0"
+authors = ["Lloyd <lloydmeta@gmail.com>"]
+description = "Conway's game of life in OpenGL."
+license = "MIT"
+homepage = "https://github.com/lloydmeta/gol-rs"
+documentation = "https://docs.rs/gol"
+keywords = [ "OpenGL", "rendering", "gfx-rs", "game-of-life", "Conway" ]
+
+[dependencies]
+rand = "0.3"
+gfx = "0.16"
+glutin = "0.8"
+gfx_window_glutin = "0.16"
+gfx_device_gl = "0.14"
+clap = "2.24"
+
+[[bin]]
+name = "gol"
+test = false
+doc = false
