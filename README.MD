@@ -8,6 +8,7 @@ Areas explored:
   * General rendering
   * Vertex, fragment shaders
   * [Pipeline state objects](https://gfx-rs.github.io/2016/01/22/pso.html)
+  * [Rayon](https://github.com/nikomatsakis/rayon) for parallel processing
 
 ![gol running](gol.gif)
 

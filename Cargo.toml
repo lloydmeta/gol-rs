@@ -1,6 +1,6 @@
 [package]
 name = "gol"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
 license = "MIT"
@@ -15,6 +15,7 @@ glutin = "0.8"
 gfx_window_glutin = "0.16"
 gfx_device_gl = "0.14"
 clap = "2.24"
+rayon = "0.8"
 
 [[bin]]
 name = "gol"

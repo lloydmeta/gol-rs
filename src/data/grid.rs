@@ -1,6 +1,9 @@
 use data::cell::{Cell, Status};
 use rand;
 use rand::Rng;
+use rayon::prelude::*;
+
+const PAR_THRESHOLD_LENGTH: usize = 250000;
 
 #[derive(Debug)]
 pub struct Grid {
@@ -87,25 +90,38 @@ impl Grid {
     }
 
     fn coords_with_alives(&self) -> Vec<(Coord, usize)> {
-        self.coords_with_neighbours
-            .iter()
-            .map(|&CoordNeighbours {
-                       ref coord,
-                       ref neighbours,
-                   }| {
-                let alives = neighbours
-                    .iter()
-                    .fold(0,
-                          |acc, &Coord { i, j }| if &self.cells[i][j].0 == &Status::Alive {
-                              acc + 1
-                          } else {
-                              acc
-                          });
-                // This clone seems to be required in order for advance() to use
-                // what it returns when mutating each cell...
-                (coord.clone(), alives)
-            })
-            .collect()
+        // Not sure how to express this as a function literal
+        #[inline(always)]
+        fn mapper(grid: &Grid, &CoordNeighbours {
+                           ref coord,
+                           ref neighbours,
+                       }: &CoordNeighbours) -> (Coord, usize) {
+                        let alives = neighbours
+                        .iter()
+                        .fold(0,
+                              |acc, &Coord { i, j }| if grid.cells[i][j].0 == Status::Alive {
+                                  acc + 1
+                              } else {
+                                  acc
+                              });
+                    // This clone seems to be required in order for advance() to use
+                    // what it returns when mutating each cell...
+                    (coord.clone(), alives)
+                       }
+
+        // Quite a bit of duplicatinon here that can't be helped because
+        // Rayon par_iter() creates a different type.
+        if self.area() >= PAR_THRESHOLD_LENGTH {
+            self.coords_with_neighbours
+                .par_iter()
+                .map(|ref coord| mapper(self, coord))
+                .collect()
+        } else {
+            self.coords_with_neighbours
+                .iter()
+                .map(|ref coord| mapper(self, coord))
+                .collect()
+        }
     }
 }
 
