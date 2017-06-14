@@ -72,9 +72,8 @@ fn fill_instances(instances: &mut [Instance], grid: &Grid, size: [[f32; 2]; 2]) 
 
     let mut v = Vec::with_capacity(grid.area());
     let mut index = 0;
-    for i in 0..height {
-        for j in 0..width {
-            let cell = cells[i][j];
+    for row in cells {
+        for cell in row {
             let colour = if cell.alive() { COLOURED } else { WHITE };
             let inst = Instance { translate, colour };
             v.push(inst.clone());
@@ -172,7 +171,7 @@ impl App {
         }
     }
 
-    fn render(&mut self) {
+    pub fn render(&mut self) {
         let grid = self.grid.lock().unwrap();
         let encoder = &mut self.encoder;
 
@@ -184,9 +183,8 @@ impl App {
         } else {
             let cells = grid.cells();
             let mut buffer_idx = 0;
-            for i in 0..grid.height() {
-                for j in 0..grid.width() {
-                    let cell = cells[i][j];
+            for row in cells {
+                for cell in row {
                     let colour = if cell.alive() { COLOURED } else { WHITE };
                     self.instances[buffer_idx].colour = colour;
                     buffer_idx += 1;
