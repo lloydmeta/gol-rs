@@ -5,6 +5,7 @@ use gol::rendering;
 use gol::data::Grid;
 use clap::{Arg, App, ArgMatches};
 use std::str::FromStr;
+use std::fmt::Display;
 
 fn main() {
 
@@ -36,11 +37,11 @@ fn main() {
                  .help("Number of updates to the game board per second"))
         .get_matches();
 
-    let grid_width = get_positive("grid-width", &matches);
-    let grid_height = get_positive("grid-height", &matches);
-    let window_width = get_positive("window-width", &matches);
-    let window_height = get_positive("window-height", &matches);
-    let updates_per_second = get_positive("update-rate", &matches);
+    let grid_width = get_number("grid-width", Some(0), &matches);
+    let grid_height = get_number("grid-height", Some(0), &matches);
+    let window_width = get_number("window-width", Some(0), &matches);
+    let window_height = get_number("window-height", Some(0), &matches);
+    let updates_per_second = get_number("update-rate", None, &matches);
 
     let grid = Grid::new(grid_width, grid_height);
     let mut app = rendering::App::new(grid, window_width, window_height, updates_per_second);
@@ -57,12 +58,23 @@ fn version() -> String {
     }
 }
 
-fn get_positive<'a, A>(name: &str, matches: &ArgMatches<'a>) -> A
-    where A: FromStr,
+fn get_number<'a, A>(name: &str, maybe_min: Option<A>, matches: &ArgMatches<'a>) -> A
+    where A: FromStr + PartialOrd + Display + Copy,
           <A as FromStr>::Err: std::fmt::Debug
 {
     matches
         .value_of(name)
         .and_then(|s| s.parse::<A>().ok())
-        .expect(&format!("{} should be a positive number", name)[..])
+        .and_then(|u| match maybe_min {
+                      Some(min) => if u > min { Some(u) } else { None },
+                      _ => Some(u),
+                  })
+        .expect(&{
+                     if let Some(min) = maybe_min {
+                         format!("{} should be a positive number greater than {}.", name, min)
+                     } else {
+                         format!("{} should be a positive number.", name)
+                     }
+                 }
+                     [..])
 }
