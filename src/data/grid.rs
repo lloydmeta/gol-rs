@@ -144,7 +144,6 @@ impl Grid {
             self.cells[coord.i][coord.j].update(alives)
         }
     }
-
 }
 
 fn coords_with_neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<CoordNeighbours> {
