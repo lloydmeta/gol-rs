@@ -197,6 +197,9 @@ impl App {
 
         encoder.clear(&self.data.out, CLEARING_COLOR);
         encoder.draw(&self.slice, &self.pso, &self.data);
+        encoder.flush(&mut self.device);
+        self.window.swap_buffers().unwrap();
+        self.device.cleanup();
     }
 
     pub fn run(&mut self) {
@@ -240,9 +243,6 @@ impl App {
                     }
                 });
             self.render();
-            self.encoder.flush(&mut self.device);
-            self.window.swap_buffers().unwrap();
-            self.device.cleanup();
         }
     }
 }
