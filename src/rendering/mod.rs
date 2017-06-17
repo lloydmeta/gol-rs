@@ -181,13 +181,10 @@ impl App {
                 .unwrap();
             self.uploading = false;
         } else {
-            let cells = grid.cells();
-            let mut buffer_idx = 0;
-            for row in cells {
-                for cell in row {
+            for (idx, inst) in self.instances.iter_mut().enumerate() {
+                if let Some(ref cell) = grid.get_idx(&GridIdx(idx)) {
                     let colour = if cell.alive() { COLOURED } else { WHITE };
-                    self.instances[buffer_idx].colour = colour;
-                    buffer_idx += 1;
+                    inst.colour = colour
                 }
             }
             encoder

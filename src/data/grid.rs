@@ -6,6 +6,10 @@ use rayon::prelude::*;
 const PAR_THRESHOLD_AREA: usize = 250000;
 const PAR_THRESHOLD_LENGTH: usize = 25000;
 
+/// Used for indexing into the grid
+#[derive(Debug)]
+pub struct GridIdx(pub usize);
+
 #[derive(Debug)]
 pub struct Grid {
     /* Addressed by from-zero (i, j) notation, where i is row number, j is column number
@@ -35,6 +39,7 @@ struct CoordNeighbours {
 }
 
 impl Grid {
+    /// Creates a grid with the given width and height
     pub fn new(width: usize, height: usize) -> Grid {
         let mut rng = rand::thread_rng();
         let mut cells = Vec::with_capacity(height);
@@ -60,6 +65,19 @@ impl Grid {
             max_j,
             coords_with_neighbours,
             neighbours,
+        }
+    }
+
+    /// Returns the i-th Cell in a grid as if the 2 dimensional matrix
+    /// has been flattened into a 1 dimensional one row-wise
+    ///
+    /// TODO: is using iter faster or slower than just doing the checks?
+    pub fn get_idx(&self, &GridIdx(idx): &GridIdx) -> Option<&Cell> {
+        if idx < self.coords_with_neighbours.len() {
+            let coord_with_n = &self.coords_with_neighbours[idx];
+            Some(&self.cells[coord_with_n.coord.i][coord_with_n.coord.j])
+        } else {
+            None
         }
     }
 
