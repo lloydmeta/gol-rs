@@ -9,7 +9,7 @@ pub enum Status {
 pub struct Cell(pub Status);
 
 impl Cell {
-    // Simple check
+    /// Wraps status
     pub fn alive(&self) -> bool {
         self.0 == Status::Alive
     }

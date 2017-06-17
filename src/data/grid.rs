@@ -3,8 +3,12 @@ use rand;
 use rand::Rng;
 use rayon::prelude::*;
 
-const PAR_THRESHOLD_AREA: usize = 250000;
+pub const PAR_THRESHOLD_AREA: usize = 250000;
 const PAR_THRESHOLD_LENGTH: usize = 25000;
+
+/// Used for indexing into the grid
+#[derive(Debug)]
+pub struct GridIdx(pub usize);
 
 #[derive(Debug)]
 pub struct Grid {
@@ -18,6 +22,7 @@ pub struct Grid {
     cells: Vec<Vec<Cell>>,
     max_i: usize,
     max_j: usize,
+    area: usize,
     neighbours: Vec<Vec<[Coord; 8]>>, // Cache of where the neighbours are for each point
     coords_with_neighbours: Vec<CoordNeighbours>, // Optimisation for single-threaded updating
 }
@@ -35,6 +40,7 @@ struct CoordNeighbours {
 }
 
 impl Grid {
+    /// Creates a grid with the given width and height
     pub fn new(width: usize, height: usize) -> Grid {
         let mut rng = rand::thread_rng();
         let mut cells = Vec::with_capacity(height);
@@ -54,12 +60,27 @@ impl Grid {
         let (max_i, max_j) = max_coordinates(&cells);
         let neighbours = neihgbours(max_i, max_j, &cells);
         let coords_with_neighbours = coords_with_neighbours(max_i, max_j, &cells);
+        let area = width * height;
         Grid {
             cells,
             max_i,
             max_j,
+            area,
             coords_with_neighbours,
             neighbours,
+        }
+    }
+
+    /// Returns the i-th Cell in a grid as if the 2 dimensional matrix
+    /// has been flattened into a 1 dimensional one row-wise
+    ///
+    /// TODO: is using iter faster or slower than just doing the checks?
+    pub fn get_idx(&self, &GridIdx(idx): &GridIdx) -> Option<&Cell> {
+        if idx < self.coords_with_neighbours.len() {
+            let coord_with_n = &self.coords_with_neighbours[idx];
+            Some(&self.cells[coord_with_n.coord.i][coord_with_n.coord.j])
+        } else {
+            None
         }
     }
 
@@ -80,12 +101,11 @@ impl Grid {
     }
 
     pub fn area(&self) -> usize {
-        self.height() * self.width()
+        self.area
     }
 
     pub fn advance(&mut self) -> () {
-        let area = self.area();
-        if area >= PAR_THRESHOLD_AREA {
+        if self.area() >= PAR_THRESHOLD_AREA {
             let neighbours = &self.neighbours;
             let last_gen = &self.cells.clone();
             let cells = &mut self.cells;
@@ -305,6 +325,28 @@ mod tests {
                                   Cell(Status::Alive)]];
         grid.cells = new_cells;
         assert_eq!(alive_count(&grid), 8)
+    }
+
+    #[test]
+    fn test_get_idx() {
+        let mut grid = Grid::new(3, 3);
+        let new_cells = vec![vec![Cell(Status::Alive),
+                                  Cell(Status::Alive),
+                                  Cell(Status::Alive)],
+                             vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+                             vec![Cell(Status::Alive),
+                                  Cell(Status::Alive),
+                                  Cell(Status::Alive)]];
+        grid.cells = new_cells;
+        for idx in 0..9 {
+            let cell = grid.get_idx(&GridIdx(idx)).unwrap();
+            if idx != 4 {
+                assert!(cell.alive())
+            } else {
+                assert!(!cell.alive())
+            }
+
+        }
     }
 
     fn alive_cells(grid: &Grid) -> Vec<Coord> {
