@@ -119,7 +119,7 @@ impl Grid {
 
     // Single-threaded version of advancing the grid; the advantage of this is
     // that it does not generate or copy/copy any vectors.
-    pub fn advance_single_thread(&mut self) -> () {
+    fn advance_single_thread(&mut self) -> () {
         let alive_counts: Vec<(&Coord, usize)> = {
             let cells = &self.cells;
             self.coords_with_neighbours
