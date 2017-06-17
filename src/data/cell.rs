@@ -1,11 +1,11 @@
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
 pub enum Status {
     Dead,
     Alive,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cell(pub Status);
 
 impl Cell {

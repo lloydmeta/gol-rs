@@ -3,7 +3,8 @@ use rand;
 use rand::Rng;
 use rayon::prelude::*;
 
-const PAR_THRESHOLD_LENGTH: usize = 250000;
+const PAR_THRESHOLD_AREA: usize = 250000;
+const PAR_THRESHOLD_LENGTH: usize = 25000;
 
 #[derive(Debug)]
 pub struct Grid {
@@ -17,7 +18,8 @@ pub struct Grid {
     cells: Vec<Vec<Cell>>,
     max_i: usize,
     max_j: usize,
-    coords_with_neighbours: Vec<CoordNeighbours>,
+    neighbours: Vec<Vec<[Coord; 8]>>, // Cache of where the neighbours are for each point
+    coords_with_neighbours: Vec<CoordNeighbours>, // Optimisation for single-threaded updating
 }
 
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Clone)]
@@ -50,13 +52,14 @@ impl Grid {
             cells.push(columns);
         }
         let (max_i, max_j) = max_coordinates(&cells);
-        let area = width * height;
-        let coords_with_neighbours = coords_with_neighbours(max_i, max_j, area, &cells);
+        let neighbours = neihgbours(max_i, max_j, &cells);
+        let coords_with_neighbours = coords_with_neighbours(max_i, max_j, &cells);
         Grid {
             cells,
             max_i,
             max_j,
             coords_with_neighbours,
+            neighbours,
         }
     }
 
@@ -80,65 +83,102 @@ impl Grid {
         self.height() * self.width()
     }
 
-    // Advances the grid to its next iteration
     pub fn advance(&mut self) -> () {
-        let coords_with_alives = self.coords_with_alives();
-        for &(Coord { i, j }, alives) in coords_with_alives.iter() {
-            let ref mut cell = self.cells[i][j];
-            cell.update(alives)
+        let area = self.area();
+        if area >= PAR_THRESHOLD_AREA {
+            let neighbours = &self.neighbours;
+            let last_gen = &self.cells.clone();
+            let cells = &mut self.cells;
+            let cell_op = |(i, j, cell): (usize, usize, &mut Cell)| {
+                let alives = neighbours[i][j]
+                    .iter()
+                    .fold(0,
+                          |acc, &Coord { i, j }| if last_gen[i][j].0 == Status::Alive {
+                              acc + 1
+                          } else {
+                              acc
+                          });
+                cell.update(alives);
+            };
+            cells
+                .par_iter_mut()
+                .enumerate()
+                .for_each(|(i, row)| if row.len() >= PAR_THRESHOLD_LENGTH {
+                              row.par_iter_mut()
+                                  .enumerate()
+                                  .for_each(|(j, cell)| cell_op((i, j, cell)))
+                          } else {
+                              for (j, cell) in row.iter_mut().enumerate() {
+                                  cell_op((i, j, cell))
+                              }
+                          })
+        } else {
+            self.advance_single_thread();
         }
     }
 
-    fn coords_with_alives(&self) -> Vec<(Coord, usize)> {
-        // Not sure how to express this as a function literal
-        #[inline(always)]
-        fn mapper(grid: &Grid, &CoordNeighbours {
+    // Single-threaded version of advancing the grid; the advantage of this is
+    // that it does not generate or copy/copy any vectors.
+    pub fn advance_single_thread(&mut self) -> () {
+        let alive_counts: Vec<(&Coord, usize)> = {
+            let cells = &self.cells;
+            self.coords_with_neighbours
+                .iter()
+                .map(|&CoordNeighbours {
                            ref coord,
                            ref neighbours,
-                       }: &CoordNeighbours) -> (Coord, usize) {
-                        let alives = neighbours
+                       }| {
+                    let alive_count = neighbours
                         .iter()
                         .fold(0,
-                              |acc, &Coord { i, j }| if grid.cells[i][j].0 == Status::Alive {
+                              |acc, &Coord { i, j }| if cells[i][j].0 == Status::Alive {
                                   acc + 1
                               } else {
                                   acc
                               });
-                    // This clone seems to be required in order for advance() to use
-                    // what it returns when mutating each cell...
-                    (coord.clone(), alives)
-                       }
-
-        // Quite a bit of duplicatinon here that can't be helped because
-        // Rayon par_iter() creates a different type.
-        if self.area() >= PAR_THRESHOLD_LENGTH {
-            self.coords_with_neighbours
-                .par_iter()
-                .map(|ref coord| mapper(self, coord))
+                    (coord, alive_count)
+                })
                 .collect()
-        } else {
-            self.coords_with_neighbours
-                .iter()
-                .map(|ref coord| mapper(self, coord))
-                .collect()
+        };
+        for (coord, alives) in alive_counts {
+            self.cells[coord.i][coord.j].update(alives)
         }
     }
+
 }
 
-fn coords_with_neighbours(max_i: usize,
-                          max_j: usize,
-                          area: usize,
-                          cells: &[Vec<Cell>])
-                          -> Vec<CoordNeighbours> {
-    let mut v = Vec::with_capacity(area);
-    for (i, row) in cells.iter().enumerate() {
-        for (j, _) in row.iter().enumerate() {
-            let coord = Coord { i, j };
-            let neighbours = neighbour_coords(max_i, max_j, &coord);
-            v.push(CoordNeighbours { coord, neighbours })
-        }
-    }
-    v
+fn coords_with_neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<CoordNeighbours> {
+    cells
+        .iter()
+        .enumerate()
+        .flat_map(|(i, row)| {
+            let v: Vec<CoordNeighbours> = row.iter()
+                .enumerate()
+                .map(|(j, _)| {
+                         let coord = Coord { i, j };
+                         let neighbours = neighbour_coords(max_i, max_j, &coord);
+                         CoordNeighbours { coord, neighbours }
+                     })
+                .collect();
+            v
+        })
+        .collect()
+}
+
+fn neihgbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<Vec<[Coord; 8]>> {
+    cells
+        .iter()
+        .enumerate()
+        .map(|(i, row)| {
+            row.iter()
+                .enumerate()
+                .map(|(j, _)| {
+                         let coord = Coord { i, j };
+                         neighbour_coords(max_i, max_j, &coord)
+                     })
+                .collect()
+        })
+        .collect()
 }
 
 // Given an i and j, returns the (maybe wrapped) coordinates of the neighbours of that
