@@ -327,6 +327,28 @@ mod tests {
         assert_eq!(alive_count(&grid), 8)
     }
 
+    #[test]
+    fn test_get_idx() {
+        let mut grid = Grid::new(3, 3);
+        let new_cells = vec![vec![Cell(Status::Alive),
+                                  Cell(Status::Alive),
+                                  Cell(Status::Alive)],
+                             vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+                             vec![Cell(Status::Alive),
+                                  Cell(Status::Alive),
+                                  Cell(Status::Alive)]];
+        grid.cells = new_cells;
+        for idx in 0..9 {
+            let cell = grid.get_idx(&GridIdx(idx)).unwrap();
+            if idx != 4 {
+                assert!(cell.alive())
+            } else {
+                assert!(!cell.alive())
+            }
+
+        }
+    }
+
     fn alive_cells(grid: &Grid) -> Vec<Coord> {
         let mut v = vec![];
         for (i, row) in grid.cells.iter().enumerate() {
