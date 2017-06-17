@@ -3,7 +3,7 @@ use rand;
 use rand::Rng;
 use rayon::prelude::*;
 
-const PAR_THRESHOLD_AREA: usize = 250000;
+pub const PAR_THRESHOLD_AREA: usize = 250000;
 const PAR_THRESHOLD_LENGTH: usize = 25000;
 
 /// Used for indexing into the grid
