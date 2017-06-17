@@ -1,12 +1,15 @@
 [package]
 name = "gol"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
 license = "MIT"
 homepage = "https://github.com/lloydmeta/gol-rs"
 documentation = "https://docs.rs/gol"
 keywords = [ "OpenGL", "rendering", "gfx-rs", "game-of-life", "Conway" ]
+
+[badges]
+travis-ci = { repository = "lloydmeta/gol-rs" }
 
 [dependencies]
 rand = "0.3"
