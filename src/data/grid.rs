@@ -22,6 +22,7 @@ pub struct Grid {
     cells: Vec<Vec<Cell>>,
     max_i: usize,
     max_j: usize,
+    area: usize,
     neighbours: Vec<Vec<[Coord; 8]>>, // Cache of where the neighbours are for each point
     coords_with_neighbours: Vec<CoordNeighbours>, // Optimisation for single-threaded updating
 }
@@ -59,10 +60,12 @@ impl Grid {
         let (max_i, max_j) = max_coordinates(&cells);
         let neighbours = neihgbours(max_i, max_j, &cells);
         let coords_with_neighbours = coords_with_neighbours(max_i, max_j, &cells);
+        let area = width * height;
         Grid {
             cells,
             max_i,
             max_j,
+            area,
             coords_with_neighbours,
             neighbours,
         }
@@ -98,12 +101,11 @@ impl Grid {
     }
 
     pub fn area(&self) -> usize {
-        self.height() * self.width()
+        self.area
     }
 
     pub fn advance(&mut self) -> () {
-        let area = self.area();
-        if area >= PAR_THRESHOLD_AREA {
+        if self.area() >= PAR_THRESHOLD_AREA {
             let neighbours = &self.neighbours;
             let last_gen = &self.cells.clone();
             let cells = &mut self.cells;

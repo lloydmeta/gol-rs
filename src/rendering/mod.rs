@@ -9,6 +9,7 @@ use gfx_device_gl::{Resources, CommandBuffer, Device as GlDevice};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
+use rayon::prelude::*;
 
 const WINDOW_TITLE: &'static str = "Simple Life";
 
@@ -181,10 +182,16 @@ impl App {
                 .unwrap();
             self.uploading = false;
         } else {
-            for (idx, inst) in self.instances.iter_mut().enumerate() {
-                if let Some(ref cell) = grid.get_idx(&GridIdx(idx)) {
-                    let colour = if cell.alive() { COLOURED } else { WHITE };
-                    inst.colour = colour
+            let op = |(idx, inst): (usize, &mut Instance)| if let Some(cell) =
+                grid.get_idx(&GridIdx(idx)) {
+                let colour = if cell.alive() { COLOURED } else { WHITE };
+                inst.colour = colour
+            };
+            if grid.area() >= PAR_THRESHOLD_AREA {
+                self.instances.par_iter_mut().enumerate().for_each(op);
+            } else {
+                for (idx, inst) in self.instances.iter_mut().enumerate() {
+                    op((idx, inst));
                 }
             }
             encoder
