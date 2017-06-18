@@ -58,7 +58,7 @@ impl Grid {
             cells.push(columns);
         }
         let (max_i, max_j) = max_coordinates(&cells);
-        let neighbours = neihgbours(max_i, max_j, &cells);
+        let neighbours = neighbours(max_i, max_j, &cells);
         let coords_with_neighbours = coords_with_neighbours(max_i, max_j, &cells);
         let area = width * height;
         Grid {
@@ -84,12 +84,9 @@ impl Grid {
         }
     }
 
-    // Returns a read only vector with references to this grid's cells
-    pub fn cells(&self) -> Vec<Vec<&Cell>> {
-        self.cells
-            .iter()
-            .map(|r| r.iter().map(|c| c).collect())
-            .collect()
+    // Returns a slice with references to this grid's cells
+    pub fn cells(&self) -> &[Vec<Cell>] {
+        self.cells.as_slice()
     }
 
     pub fn height(&self) -> usize {
@@ -138,7 +135,7 @@ impl Grid {
     }
 
     // Single-threaded version of advancing the grid; the advantage of this is
-    // that it does not generate or copy/copy any vectors.
+    // that it does not clone the original cells.
     fn advance_single_thread(&mut self) -> () {
         let alive_counts: Vec<(&Coord, usize)> = {
             let cells = &self.cells;
@@ -184,7 +181,7 @@ fn coords_with_neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Ve
         .collect()
 }
 
-fn neihgbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<Vec<[Coord; 8]>> {
+fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<Vec<[Coord; 8]>> {
     cells
         .iter()
         .enumerate()
