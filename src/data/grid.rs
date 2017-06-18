@@ -2,6 +2,7 @@ use data::cell::{Cell, Status};
 use rand;
 use rand::Rng;
 use rayon::prelude::*;
+use std::mem;
 
 pub const PAR_THRESHOLD_AREA: usize = 250000;
 const PAR_THRESHOLD_LENGTH: usize = 25000;
@@ -20,23 +21,20 @@ pub struct Grid {
      * [ (2,0) (2,1) (2,2) ]
      */
     cells: Vec<Vec<Cell>>,
+    scratchpad_cells: Vec<Vec<Cell>>,
     max_i: usize,
     max_j: usize,
     area: usize,
-    neighbours: Vec<Vec<[Coord; 8]>>, // Cache of where the neighbours are for each point
-    coords_with_neighbours: Vec<CoordNeighbours>, // Optimisation for single-threaded updating
+    // Cache of where the neighbours are for each point
+    neighbours: Vec<Vec<[Coord; 8]>>,
+    // Cache of Grid (i,j) assuming grid is flattened row by row from left to right
+    coords: Vec<Coord>,
 }
 
 #[derive(PartialEq, Eq, Debug, PartialOrd, Ord, Clone)]
 struct Coord {
     i: usize,
     j: usize,
-}
-
-#[derive(PartialEq, Eq, Debug)]
-struct CoordNeighbours {
-    coord: Coord,
-    neighbours: [Coord; 8],
 }
 
 impl Grid {
@@ -57,16 +55,18 @@ impl Grid {
             }
             cells.push(columns);
         }
+        let scratchpad_cells = cells.clone();
         let (max_i, max_j) = max_coordinates(&cells);
-        let neighbours = neihgbours(max_i, max_j, &cells);
-        let coords_with_neighbours = coords_with_neighbours(max_i, max_j, &cells);
+        let neighbours = neighbours(max_i, max_j, &cells);
+        let coords = coords(&cells);
         let area = width * height;
         Grid {
             cells,
+            scratchpad_cells,
             max_i,
             max_j,
             area,
-            coords_with_neighbours,
+            coords,
             neighbours,
         }
     }
@@ -76,20 +76,17 @@ impl Grid {
     ///
     /// TODO: is using iter faster or slower than just doing the checks?
     pub fn get_idx(&self, &GridIdx(idx): &GridIdx) -> Option<&Cell> {
-        if idx < self.coords_with_neighbours.len() {
-            let coord_with_n = &self.coords_with_neighbours[idx];
-            Some(&self.cells[coord_with_n.coord.i][coord_with_n.coord.j])
+        if idx < self.coords.len() {
+            let coord = &self.coords[idx];
+            Some(&self.cells[coord.i][coord.j])
         } else {
             None
         }
     }
 
-    // Returns a read only vector with references to this grid's cells
-    pub fn cells(&self) -> Vec<Vec<&Cell>> {
-        self.cells
-            .iter()
-            .map(|r| r.iter().map(|c| c).collect())
-            .collect()
+    // Returns a slice with references to this grid's cells
+    pub fn cells(&self) -> &[Vec<Cell>] {
+        self.cells.as_slice()
     }
 
     pub fn height(&self) -> usize {
@@ -105,10 +102,12 @@ impl Grid {
     }
 
     pub fn advance(&mut self) -> () {
-        if self.area() >= PAR_THRESHOLD_AREA {
+        {
             let neighbours = &self.neighbours;
-            let last_gen = &self.cells.clone();
-            let cells = &mut self.cells;
+            let last_gen = &self.cells;
+            let area_requires_par = self.area() >= PAR_THRESHOLD_AREA;
+            let width_requires_par = self.width() >= PAR_THRESHOLD_LENGTH;
+            let cells = &mut self.scratchpad_cells;
             let cell_op = |(i, j, cell): (usize, usize, &mut Cell)| {
                 let alives = neighbours[i][j]
                     .iter()
@@ -118,73 +117,49 @@ impl Grid {
                           } else {
                               acc
                           });
-                cell.update(alives);
+                let next_status = last_gen[i][j].next_status(alives);
+                cell.update(next_status);
             };
-            cells
-                .par_iter_mut()
-                .enumerate()
-                .for_each(|(i, row)| if row.len() >= PAR_THRESHOLD_LENGTH {
-                              row.par_iter_mut()
-                                  .enumerate()
-                                  .for_each(|(j, cell)| cell_op((i, j, cell)))
-                          } else {
-                              for (j, cell) in row.iter_mut().enumerate() {
-                                  cell_op((i, j, cell))
-                              }
-                          })
-        } else {
-            self.advance_single_thread();
-        }
-    }
-
-    // Single-threaded version of advancing the grid; the advantage of this is
-    // that it does not generate or copy/copy any vectors.
-    fn advance_single_thread(&mut self) -> () {
-        let alive_counts: Vec<(&Coord, usize)> = {
-            let cells = &self.cells;
-            self.coords_with_neighbours
-                .iter()
-                .map(|&CoordNeighbours {
-                           ref coord,
-                           ref neighbours,
-                       }| {
-                    let alive_count = neighbours
-                        .iter()
-                        .fold(0,
-                              |acc, &Coord { i, j }| if cells[i][j].0 == Status::Alive {
-                                  acc + 1
+            let non_par_row_op = |(i, row): (usize, &mut Vec<Cell>)| for (j, cell) in
+                row.iter_mut().enumerate() {
+                cell_op((i, j, cell))
+            };
+            if area_requires_par {
+                cells
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(i, row)| if width_requires_par {
+                                  row.par_iter_mut()
+                                      .enumerate()
+                                      .for_each(|(j, cell)| cell_op((i, j, cell)))
                               } else {
-                                  acc
+                                  non_par_row_op((i, row))
                               });
-                    (coord, alive_count)
-                })
-                .collect()
-        };
-        for (coord, alives) in alive_counts {
-            self.cells[coord.i][coord.j].update(alives)
+            } else {
+                for (i, row) in cells.iter_mut().enumerate() {
+                    non_par_row_op((i, row))
+                }
+            }
         }
+        mem::swap(&mut self.cells, &mut self.scratchpad_cells);
     }
 }
 
-fn coords_with_neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<CoordNeighbours> {
+fn coords(cells: &[Vec<Cell>]) -> Vec<Coord> {
     cells
         .iter()
         .enumerate()
         .flat_map(|(i, row)| {
-            let v: Vec<CoordNeighbours> = row.iter()
-                .enumerate()
-                .map(|(j, _)| {
-                         let coord = Coord { i, j };
-                         let neighbours = neighbour_coords(max_i, max_j, &coord);
-                         CoordNeighbours { coord, neighbours }
-                     })
-                .collect();
-            v
-        })
+                      let v: Vec<Coord> = row.iter()
+                          .enumerate()
+                          .map(|(j, _)| Coord { i, j })
+                          .collect();
+                      v
+                  })
         .collect()
 }
 
-fn neihgbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<Vec<[Coord; 8]>> {
+fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<Vec<[Coord; 8]>> {
     cells
         .iter()
         .enumerate()
