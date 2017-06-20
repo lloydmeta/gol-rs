@@ -8,7 +8,7 @@ pub const PAR_THRESHOLD_AREA: usize = 250000;
 const PAR_THRESHOLD_LENGTH: usize = 25000;
 
 /// Used for indexing into the grid
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct GridIdx(pub usize);
 
 #[derive(Debug)]
@@ -79,6 +79,24 @@ impl Grid {
         if idx < self.coords.len() {
             let coord = &self.coords[idx];
             Some(&self.cells[coord.i][coord.j])
+        } else {
+            None
+        }
+    }
+
+    fn to_grid_idx(&self, &Coord { i, j }: &Coord) -> Option<GridIdx> {
+        if i <= self.max_i && j <= self.max_j {
+            Some(GridIdx(self.width() * i + j))
+        } else {
+            None
+        }
+    }
+
+    fn to_coord(&self, &GridIdx(idx): &GridIdx) -> Option<Coord> {
+        if idx < self.area() {
+            let i = idx / self.width();
+            let j = idx % self.width();
+            Some(Coord { i, j })
         } else {
             None
         }
@@ -322,6 +340,33 @@ mod tests {
             }
 
         }
+    }
+
+    /// Given
+    ///
+    /// [ (0,0) (0,1) (0,2) (0, 3) ]
+    /// [ (1,0) (1,1) (1,2) (1, 3) ]
+    /// [ (2,0) (2,1) (2,2) (2, 3) ]
+    #[test]
+    fn test_to_grid_idx() {
+        let grid = Grid::new(4, 3);
+        assert_eq!(grid.to_grid_idx(&Coord { i: 0, j: 0 }), Some(GridIdx(0)));
+        assert_eq!(grid.to_grid_idx(&Coord { i: 1, j: 2 }), Some(GridIdx(6)));
+        assert_eq!(grid.to_grid_idx(&Coord { i: 2, j: 3 }), Some(GridIdx(11)));
+        assert_eq!(grid.to_grid_idx(&Coord { i: 3, j: 3 }), None);
+    }
+    /// Given
+    ///
+    /// [ (0,0) (0,1) (0,2) (0, 3) ]
+    /// [ (1,0) (1,1) (1,2) (1, 3) ]
+    /// [ (2,0) (2,1) (2,2) (2, 3) ]
+    #[test]
+    fn test_to_coord() {
+        let grid = Grid::new(4, 3);
+        assert_eq!(grid.to_coord(&GridIdx(0)), Some(Coord { i: 0, j: 0 }));
+        assert_eq!(grid.to_coord(&GridIdx(6)), Some(Coord { i: 1, j: 2 }));
+        assert_eq!(grid.to_coord(&GridIdx(11)), Some(Coord { i: 2, j: 3 }));
+        assert_eq!(grid.to_coord(&GridIdx(12)), None);
     }
 
     fn alive_cells(grid: &Grid) -> Vec<Coord> {
