@@ -1,6 +1,6 @@
 [package]
 name = "gol"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
 license = "MIT"
