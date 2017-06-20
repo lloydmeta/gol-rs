@@ -166,67 +166,66 @@ impl Grid {
 }
 
 fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<[GridIdx; 8]> {
-    let neighbour_coords = |coord: &Coord| {
-        let width = max_j + 1;
-        let Coord { i, j } = *coord;
-        let to_grid_idx = |Coord { i, j }: Coord| GridIdx(width * i + j);
-
-        let i_up = match i {
-            0 => max_i,
-            _ => i - 1,
-        };
-
-        let i_down = match i {
-            _ if i == max_i => 0,
-            _ => i + 1,
-        };
-
-        let j_left = match j {
-            0 => max_j,
-            _ => j - 1,
-        };
-        let j_right = match j {
-            _ if j == max_j => 0,
-            _ => j + 1,
-        };
-
-        let north = Coord { i: i_up, j: j };
-        let north_east = Coord {
-            i: i_up,
-            j: j_right,
-        };
-        let east = Coord { i, j: j_right };
-        let south_east = Coord {
-            i: i_down,
-            j: j_right,
-        };
-        let south = Coord { i: i_down, j };
-        let south_west = Coord {
-            i: i_down,
-            j: j_left,
-        };
-        let west = Coord { i, j: j_left };
-        let north_west = Coord { i: i_up, j: j_left };
-        [to_grid_idx(north),
-         to_grid_idx(north_east),
-         to_grid_idx(east),
-         to_grid_idx(south_east),
-         to_grid_idx(south),
-         to_grid_idx(south_west),
-         to_grid_idx(west),
-         to_grid_idx(north_west)]
-    };
-
-
     let mut v = Vec::with_capacity((max_i + 1) * (max_j + 1));
     for (i, row) in cells.iter().enumerate() {
         for (j, _) in row.iter().enumerate() {
             let coord = Coord { i, j };
-            v.push(neighbour_coords(&coord))
+            v.push(neighbour_coords(max_i, max_j, &coord))
         }
 
     }
     v
+}
+
+fn neighbour_coords(max_i: usize, max_j: usize, coord: &Coord) -> [GridIdx; 8] {
+    let width = max_j + 1;
+    let Coord { i, j } = *coord;
+    let to_grid_idx = |Coord { i, j }: Coord| GridIdx(width * i + j);
+
+    let i_up = match i {
+        0 => max_i,
+        _ => i - 1,
+    };
+
+    let i_down = match i {
+        _ if i == max_i => 0,
+        _ => i + 1,
+    };
+
+    let j_left = match j {
+        0 => max_j,
+        _ => j - 1,
+    };
+    let j_right = match j {
+        _ if j == max_j => 0,
+        _ => j + 1,
+    };
+
+    let north = Coord { i: i_up, j: j };
+    let north_east = Coord {
+        i: i_up,
+        j: j_right,
+    };
+    let east = Coord { i, j: j_right };
+    let south_east = Coord {
+        i: i_down,
+        j: j_right,
+    };
+    let south = Coord { i: i_down, j };
+    let south_west = Coord {
+        i: i_down,
+        j: j_left,
+    };
+    let west = Coord { i, j: j_left };
+    let north_west = Coord { i: i_up, j: j_left };
+    [to_grid_idx(north),
+     to_grid_idx(north_east),
+     to_grid_idx(east),
+     to_grid_idx(south_east),
+     to_grid_idx(south),
+     to_grid_idx(south_west),
+     to_grid_idx(west),
+     to_grid_idx(north_west)]
 }
 
 
