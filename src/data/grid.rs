@@ -41,6 +41,9 @@ impl Grid {
     /// Creates a grid with the given width and height
     pub fn new(width: usize, height: usize) -> Grid {
         let mut rng = rand::thread_rng();
+        /// Grid is a matrix with {height} rows and {width} columns, addressed
+        /// via (i, j) (row, column) convention. Used for finding neightbours because it's
+        /// just an easier mental model to work with for that problem. It gets flattened later.
         let mut grid = Vec::with_capacity(height);
         for _ in 0..height {
             let mut row = Vec::with_capacity(width);
@@ -109,9 +112,9 @@ impl Grid {
     pub fn cells(&self) -> Vec<Vec<&Cell>> {
         let mut rows = Vec::with_capacity(self.height());
         let mut i = 0;
-        for _ in 0 .. self.height() {
+        for _ in 0..self.height() {
             let mut columns = Vec::with_capacity(self.width());
-            for _ in 0 .. self.width() {
+            for _ in 0..self.width() {
                 columns.push(&self.cells[i]);
                 i += 1;
             }
@@ -151,10 +154,7 @@ impl Grid {
                 cell.update(next_status);
             };
             if area_requires_par {
-                cells
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(cell_op);
+                cells.par_iter_mut().enumerate().for_each(cell_op);
             } else {
                 for (i, cell) in cells.iter_mut().enumerate() {
                     cell_op((i, cell))
@@ -166,62 +166,69 @@ impl Grid {
 }
 
 fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<[GridIdx; 8]> {
-    let mut v = Vec::with_capacity((max_i+1) * (max_j + 1));
+    let neighbour_coords = |coord: &Coord| {
+        let width = max_j + 1;
+        let Coord { i, j } = *coord;
+        let to_grid_idx = |Coord { i, j }: Coord| GridIdx(width * i + j);
+
+        let i_up = match i {
+            0 => max_i,
+            _ => i - 1,
+        };
+
+        let i_down = match i {
+            _ if i == max_i => 0,
+            _ => i + 1,
+        };
+
+        let j_left = match j {
+            0 => max_j,
+            _ => j - 1,
+        };
+        let j_right = match j {
+            _ if j == max_j => 0,
+            _ => j + 1,
+        };
+
+        let north = Coord { i: i_up, j: j };
+        let north_east = Coord {
+            i: i_up,
+            j: j_right,
+        };
+        let east = Coord { i, j: j_right };
+        let south_east = Coord {
+            i: i_down,
+            j: j_right,
+        };
+        let south = Coord { i: i_down, j };
+        let south_west = Coord {
+            i: i_down,
+            j: j_left,
+        };
+        let west = Coord { i, j: j_left };
+        let north_west = Coord { i: i_up, j: j_left };
+        [to_grid_idx(north),
+         to_grid_idx(north_east),
+         to_grid_idx(east),
+         to_grid_idx(south_east),
+         to_grid_idx(south),
+         to_grid_idx(south_west),
+         to_grid_idx(west),
+         to_grid_idx(north_west)]
+    };
+
+
+    let mut v = Vec::with_capacity((max_i + 1) * (max_j + 1));
     for (i, row) in cells.iter().enumerate() {
         for (j, _) in row.iter().enumerate() {
             let coord = Coord { i, j };
-            v.push(neighbour_coords(max_i, max_j, &coord))
+            v.push(neighbour_coords(&coord))
         }
 
     }
     v
 }
 
-// Given an i and j, returns the (maybe wrapped) coordinates of the neighbours of that
-// coordinate.
-fn neighbour_coords(max_i: usize, max_j: usize, coord: &Coord) -> [GridIdx; 8] {
-    let width = max_j + 1;
-    let to_grid_idx = |Coord { i, j }: Coord| GridIdx(width * i + j);
-    let Coord { i, j } = *coord;
-
-    let i_up = match i {
-        0 => max_i,
-        _ => i - 1,
-    };
-
-    let i_down = match i {
-        _ if i == max_i => 0,
-        _ => i + 1,
-    };
-
-    let j_left = match j {
-        0 => max_j,
-        _ => j - 1,
-    };
-    let j_right = match j {
-        _ if j == max_j => 0,
-        _ => j + 1,
-    };
-
-    let north = Coord { i: i_up, j: j };
-    let north_east = Coord {
-        i: i_up,
-        j: j_right,
-    };
-    let east = Coord { i, j: j_right };
-    let south_east = Coord {
-        i: i_down,
-        j: j_right,
-    };
-    let south = Coord { i: i_down, j };
-    let south_west = Coord {
-        i: i_down,
-        j: j_left,
-    };
-    let west = Coord { i, j: j_left };
-    let north_west = Coord { i: i_up, j: j_left };
-    [to_grid_idx(north), to_grid_idx(north_east), to_grid_idx(east), to_grid_idx(south_east), to_grid_idx(south), to_grid_idx(south_west), to_grid_idx(west), to_grid_idx(north_west)]
-}
 
 #[cfg(test)]
 mod tests {
@@ -292,7 +299,10 @@ mod tests {
                              vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
                              vec![Cell(Status::Alive),
                                   Cell(Status::Alive),
-                                  Cell(Status::Alive)]].into_iter().flat_map(|v| v).collect();
+                                  Cell(Status::Alive)]]
+                .into_iter()
+                .flat_map(|v| v)
+                .collect();
         grid.cells = new_cells;
         assert_eq!(alive_count(&grid), 8)
     }
@@ -300,13 +310,17 @@ mod tests {
     #[test]
     fn test_get_idx() {
         let mut grid = Grid::new(3, 3);
-        let new_cells: Vec<Cell> = vec![vec![Cell(Status::Alive),
-                                  Cell(Status::Alive),
-                                  Cell(Status::Alive)],
-                             vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
-                             vec![Cell(Status::Alive),
-                                  Cell(Status::Alive),
-                                  Cell(Status::Alive)]].into_iter().flat_map(|v| v).collect();
+        let new_cells: Vec<Cell> =
+            vec![vec![Cell(Status::Alive),
+                      Cell(Status::Alive),
+                      Cell(Status::Alive)],
+                 vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+                 vec![Cell(Status::Alive),
+                      Cell(Status::Alive),
+                      Cell(Status::Alive)]]
+                    .into_iter()
+                    .flat_map(|v| v)
+                    .collect();
         grid.cells = new_cells;
         for idx in 0..9 {
             let cell = grid.get_idx(&GridIdx(idx)).unwrap();
