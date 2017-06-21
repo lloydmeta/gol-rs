@@ -14,7 +14,8 @@ Areas explored:
 
 ## Usage
 
-`$ cargo run`
+You can install the executable via `cargo install gol`, then run via `gol`, or if you've cloned the
+repo,`cargo run`.
 
 ```bash
 OPTIONS:
