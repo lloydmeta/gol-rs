@@ -172,38 +172,42 @@ impl App {
         }
     }
 
-    pub fn render(&mut self) {
-        let grid = self.grid.lock().unwrap();
-        let encoder = &mut self.encoder;
-
+    #[inline]
+    fn render(&mut self) {
         if self.uploading {
-            encoder
+            self.encoder
                 .copy_buffer(&self.upload, &self.data.instance, 0, 0, self.upload.len())
                 .unwrap();
             self.uploading = false;
         } else {
-            let op = |(idx, inst): (usize, &mut Instance)| if let Some(cell) =
-                grid.get_idx(&GridIdx(idx)) {
-                let colour = if cell.alive() { COLOURED } else { WHITE };
-                inst.colour = colour
-            };
-            if grid.area() >= PAR_THRESHOLD_AREA {
-                self.instances.par_iter_mut().enumerate().for_each(op);
-            } else {
-                for (idx, inst) in self.instances.iter_mut().enumerate() {
-                    op((idx, inst));
-                }
-            }
-            encoder
+            self.update_instances();
+            self.encoder
                 .update_buffer(&self.data.instance, &self.instances, 0)
                 .unwrap();
         }
-
-        encoder.clear(&self.data.out, CLEARING_COLOR);
-        encoder.draw(&self.slice, &self.pso, &self.data);
-        encoder.flush(&mut self.device);
+        self.encoder.clear(&self.data.out, CLEARING_COLOR);
+        self.encoder.draw(&self.slice, &self.pso, &self.data);
+        self.encoder.flush(&mut self.device);
         self.window.swap_buffers().unwrap();
         self.device.cleanup();
+    }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn update_instances(&mut self) {
+        let grid = self.grid.lock().unwrap();
+        let op = |(idx, inst): (usize, &mut Instance)| if let Some(cell) =
+            grid.get_idx(&GridIdx(idx)) {
+            let colour = if cell.alive() { COLOURED } else { WHITE };
+            inst.colour = colour
+        };
+        if grid.area() >= PAR_THRESHOLD_AREA {
+            self.instances.par_iter_mut().enumerate().for_each(op);
+        } else {
+            for (idx, inst) in self.instances.iter_mut().enumerate() {
+                op((idx, inst));
+            }
+        }
     }
 
     pub fn run(&mut self) {
