@@ -9,13 +9,14 @@ Areas explored:
   * Vertex, fragment shaders
   * [Pipeline state objects](https://gfx-rs.github.io/2016/01/22/pso.html)
   * [Rayon](https://github.com/nikomatsakis/rayon) for parallel processing
+  * Building and deploying cross-platform binaries via [trust](https://github.com/japaric/trust)
 
 ![gol running](gol.gif)
 
 ## Usage
 
-You can install the executable via `cargo install gol`, then run via `gol`, or if you've cloned the
-repo,`cargo run`.
+You can run the executable by downloading one of the binaries in [releases](https://github.com/lloydmeta/gol-rs/releases), or
+via `cargo install gol`, then running `gol`, or if you've cloned the repo,`cargo run`.
 
 ```bash
 OPTIONS:
