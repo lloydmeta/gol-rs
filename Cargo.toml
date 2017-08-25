@@ -1,6 +1,6 @@
 [package]
 name = "gol"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
 license = "MIT"
@@ -24,3 +24,8 @@ rayon = "0.8"
 name = "gol"
 test = false
 doc = false
+
+[profile.release]
+opt-level = 3
+debug = false
+lto = true
