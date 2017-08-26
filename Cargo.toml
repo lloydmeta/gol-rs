@@ -1,6 +1,6 @@
 [package]
 name = "gol"
-version = "0.1.9"
+version = "0.1.10"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
 license = "MIT"
@@ -13,11 +13,11 @@ travis-ci = { repository = "lloydmeta/gol-rs" }
 
 [dependencies]
 rand = "0.3"
-gfx = "0.16"
-glutin = "0.8"
-gfx_window_glutin = "0.16"
-gfx_device_gl = "0.14"
-clap = "2.24"
+gfx = "0.16.1"
+glutin = "0.9.2"
+gfx_window_glutin = "0.17"
+gfx_device_gl = "0.14.2"
+clap = "2.26"
 rayon = "0.8"
 
 [[bin]]

@@ -4,6 +4,7 @@ use gfx::Device;
 use gfx_window_glutin;
 use gfx::traits::FactoryExt;
 use glutin;
+use glutin::GlContext;
 use gfx::Factory;
 use gfx_device_gl::{Resources, CommandBuffer, Device as GlDevice};
 use std::sync::{Arc, Mutex};
@@ -13,10 +14,12 @@ use rayon::prelude::*;
 
 const WINDOW_TITLE: &'static str = "Simple Life";
 
-const QUAD_VERTICES: [Vertex; 4] = [Vertex { position: [-0.5, 0.5] },
-                                    Vertex { position: [-0.5, -0.5] },
-                                    Vertex { position: [0.5, -0.5] },
-                                    Vertex { position: [0.5, 0.5] }];
+const QUAD_VERTICES: [Vertex; 4] = [
+    Vertex { position: [-0.5, 0.5] },
+    Vertex { position: [-0.5, -0.5] },
+    Vertex { position: [0.5, -0.5] },
+    Vertex { position: [0.5, 0.5] },
+];
 
 const QUAD_INDICES: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
@@ -91,7 +94,7 @@ fn fill_instances(instances: &mut [Instance], grid: &Grid, size: [[f32; 2]; 2]) 
 pub struct App {
     grid: Arc<Mutex<Grid>>,
     updates_per_second: u16,
-    window: glutin::Window,
+    window: glutin::GlWindow,
     device: GlDevice,
     // main_depth: DepthStencilView<Resources, DepthFormat>,
     events_loop: glutin::EventsLoop,
@@ -109,18 +112,20 @@ impl App {
         let events_loop = glutin::EventsLoop::new();
         let builder = glutin::WindowBuilder::new()
             .with_title(WINDOW_TITLE)
-            .with_dimensions(window_width, window_height)
-            .with_vsync();
+            .with_dimensions(window_width, window_height);
+        let context = glutin::ContextBuilder::new().with_vsync(true);
         let (window, device, mut factory, main_color, _) =
-            gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, &events_loop);
+            gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, context, &events_loop);
         let encoder = factory.create_command_buffer().into();
 
         let width: u32 = grid.width() as u32;
         let height: u32 = grid.height() as u32;
         let area = grid.area() as u32;
 
-        let size = [[INSTANCE_PORTION / width as f32, 0.],
-                    [0., INSTANCE_PORTION / height as f32]];
+        let size = [
+            [INSTANCE_PORTION / width as f32, 0.],
+            [0., INSTANCE_PORTION / height as f32],
+        ];
 
         let upload = factory.create_upload_buffer(area as usize).unwrap();
         let insts = {
@@ -129,10 +134,12 @@ impl App {
         };
 
         let instances = factory
-            .create_buffer(area as usize,
-                           gfx::buffer::Role::Vertex,
-                           gfx::memory::Usage::Dynamic,
-                           gfx::TRANSFER_DST)
+            .create_buffer(
+                area as usize,
+                gfx::buffer::Role::Vertex,
+                gfx::memory::Usage::Dynamic,
+                gfx::TRANSFER_DST,
+            )
             .unwrap();
 
 
@@ -149,9 +156,11 @@ impl App {
             events_loop: events_loop,
             // main_depth: main_depth,
             pso: factory
-                .create_pipeline_simple(include_bytes!("shaders/instancing.glslv"),
-                                        include_bytes!("shaders/instancing.glslf"),
-                                        pipe::new())
+                .create_pipeline_simple(
+                    include_bytes!("shaders/instancing.glslv"),
+                    include_bytes!("shaders/instancing.glslf"),
+                    pipe::new(),
+                )
                 .unwrap(),
             encoder: encoder,
             data: pipe::Data {
@@ -159,9 +168,11 @@ impl App {
                 instance: instances,
                 scale: size,
                 locals: factory
-                    .create_buffer_immutable(&[locals],
-                                             gfx::buffer::Role::Constant,
-                                             gfx::Bind::empty())
+                    .create_buffer_immutable(
+                        &[locals],
+                        gfx::buffer::Role::Constant,
+                        gfx::Bind::empty(),
+                    )
                     .unwrap(),
                 out: main_color,
             },
@@ -196,11 +207,11 @@ impl App {
     #[inline]
     pub fn update_instances(&mut self) {
         let grid = self.grid.lock().unwrap();
-        let op = |(idx, inst): (usize, &mut Instance)| if let Some(cell) =
-            grid.get_idx(&GridIdx(idx)) {
-            let colour = if cell.alive() { COLOURED } else { WHITE };
-            inst.colour = colour
-        };
+        let op =
+            |(idx, inst): (usize, &mut Instance)| if let Some(cell) = grid.get_idx(&GridIdx(idx)) {
+                let colour = if cell.alive() { COLOURED } else { WHITE };
+                inst.colour = colour
+            };
         if grid.area() >= PAR_THRESHOLD_AREA {
             self.instances.par_iter_mut().enumerate().for_each(op);
         } else {
@@ -231,25 +242,28 @@ impl App {
         let mut running = true;
         while running {
             // fetch events
-            self.events_loop
-                .poll_events(|glutin::Event::WindowEvent {
-                                  window_id: _,
-                                  event,
-                              }| {
-                    match event {
-                        glutin::WindowEvent::KeyboardInput(_,
-                                                       _,
-                                                       Some(glutin::VirtualKeyCode::Escape),
-                                                       _) |
-                    glutin::WindowEvent::Closed => running = false,
-                        glutin::WindowEvent::Resized(_width, _height) => {
-                            if !self.uploading {
-                                running = false
+            let currently_uploading = self.uploading;
+            self.events_loop.poll_events(
+                |polled_event| match polled_event {
+                    glutin::Event::WindowEvent { event, .. } => {
+                        match event {
+                            glutin::WindowEvent::KeyboardInput {
+                                input: glutin::KeyboardInput {
+                                    virtual_keycode: Some(glutin::VirtualKeyCode::Escape), ..
+                                },
+                                ..
+                            } |
+                            glutin::WindowEvent::Closed |
+                            // handle this eventually
+                            glutin::WindowEvent::Resized(_, _) => {
+                                running = currently_uploading
                             }
-                        } // handle eventually
-                        _ => {}
+                            _ => {}
+                        }
                     }
-                });
+                    _ => (),
+                },
+            );
             self.render();
         }
     }

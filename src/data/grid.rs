@@ -142,14 +142,15 @@ impl Grid {
             let area_requires_par = self.area() >= PAR_THRESHOLD_AREA;
             let cells = &mut self.scratchpad_cells;
             let cell_op = |(i, cell): (usize, &mut Cell)| {
-                let alives = neighbours[i]
-                    .iter()
-                    .fold(0,
-                          |acc, &GridIdx(idx)| if last_gen[idx].0 == Status::Alive {
-                              acc + 1
-                          } else {
-                              acc
-                          });
+                let alives =
+                    neighbours[i].iter().fold(
+                        0,
+                        |acc, &GridIdx(idx)| if last_gen[idx].0 == Status::Alive {
+                            acc + 1
+                        } else {
+                            acc
+                        },
+                    );
                 let next_status = last_gen[i].next_status(alives);
                 cell.update(next_status);
             };
@@ -218,14 +219,16 @@ fn neighbour_coords(max_i: usize, max_j: usize, coord: &Coord) -> [GridIdx; 8] {
     };
     let west = Coord { i, j: j_left };
     let north_west = Coord { i: i_up, j: j_left };
-    [to_grid_idx(north),
-     to_grid_idx(north_east),
-     to_grid_idx(east),
-     to_grid_idx(south_east),
-     to_grid_idx(south),
-     to_grid_idx(south_west),
-     to_grid_idx(west),
-     to_grid_idx(north_west)]
+    [
+        to_grid_idx(north),
+        to_grid_idx(north_east),
+        to_grid_idx(east),
+        to_grid_idx(south_east),
+        to_grid_idx(south),
+        to_grid_idx(south_west),
+        to_grid_idx(west),
+        to_grid_idx(north_west),
+    ]
 }
 
 
@@ -292,16 +295,21 @@ mod tests {
     #[test]
     fn test_alive_count() {
         let mut grid = Grid::new(3, 3);
-        let new_cells = vec![vec![Cell(Status::Alive),
-                                  Cell(Status::Alive),
-                                  Cell(Status::Alive)],
-                             vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
-                             vec![Cell(Status::Alive),
-                                  Cell(Status::Alive),
-                                  Cell(Status::Alive)]]
-                .into_iter()
-                .flat_map(|v| v)
-                .collect();
+        let new_cells = vec![
+            vec![
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+            ],
+            vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+            vec![
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+            ],
+        ].into_iter()
+            .flat_map(|v| v)
+            .collect();
         grid.cells = new_cells;
         assert_eq!(alive_count(&grid), 8)
     }
@@ -310,16 +318,21 @@ mod tests {
     fn test_get_idx() {
         let mut grid = Grid::new(3, 3);
         let new_cells: Vec<Cell> =
-            vec![vec![Cell(Status::Alive),
-                      Cell(Status::Alive),
-                      Cell(Status::Alive)],
-                 vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
-                 vec![Cell(Status::Alive),
-                      Cell(Status::Alive),
-                      Cell(Status::Alive)]]
-                    .into_iter()
-                    .flat_map(|v| v)
-                    .collect();
+            vec![
+                vec![
+                    Cell(Status::Alive),
+                    Cell(Status::Alive),
+                    Cell(Status::Alive),
+                ],
+                vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+                vec![
+                    Cell(Status::Alive),
+                    Cell(Status::Alive),
+                    Cell(Status::Alive),
+                ],
+            ].into_iter()
+                .flat_map(|v| v)
+                .collect();
         grid.cells = new_cells;
         for idx in 0..9 {
             let cell = grid.get_idx(&GridIdx(idx)).unwrap();
