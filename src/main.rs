@@ -6,9 +6,20 @@ use gol::data::Grid;
 use clap::{Arg, App, ArgMatches};
 use std::str::FromStr;
 use std::fmt::Display;
+use std::error::Error;
+use std::process::exit;
 
 fn main() {
+    exit(match inner_main() {
+        Ok(_) => 0,
+        Err(err) => {
+            println!("{}", err);
+            1
+        }
+    })
+}
 
+fn inner_main() -> Result<(), Box<Error>> {
     let matches = App::new("Game of Life")
         .version(version().as_ref())
         .about("Conway's Game of Life in OpenGL!")
@@ -54,8 +65,8 @@ fn main() {
     let updates_per_second = get_number("update-rate", None, &matches);
 
     let grid = Grid::new(grid_width, grid_height);
-    let mut app = rendering::App::new(grid, window_width, window_height, updates_per_second);
-    app.run();
+    let app = rendering::App::new(grid, window_width, window_height, updates_per_second);
+    app?.run()
 }
 
 fn version() -> String {

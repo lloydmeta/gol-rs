@@ -7,9 +7,10 @@ use glutin;
 use glutin::GlContext;
 use gfx::Factory;
 use gfx_device_gl::{Resources, CommandBuffer, Device as GlDevice};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::error::Error;
 use rayon::prelude::*;
 
 const WINDOW_TITLE: &'static str = "Simple Life";
@@ -108,7 +109,12 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(grid: Grid, window_width: u32, window_height: u32, updates_per_second: u16) -> Self {
+    pub fn new(
+        grid: Grid,
+        window_width: u32,
+        window_height: u32,
+        updates_per_second: u16,
+    ) -> Result<Self, Box<Error>> {
         let events_loop = glutin::EventsLoop::new();
         let builder = glutin::WindowBuilder::new()
             .with_title(WINDOW_TITLE)
@@ -127,20 +133,18 @@ impl App {
             [0., INSTANCE_PORTION / height as f32],
         ];
 
-        let upload = factory.create_upload_buffer(area as usize).unwrap();
+        let upload = factory.create_upload_buffer(area as usize)?;
         let insts = {
-            let mut writer = factory.write_mapping(&upload).unwrap();
+            let mut writer = factory.write_mapping(&upload)?;
             fill_instances(&mut writer, &grid, size)
         };
 
-        let instances = factory
-            .create_buffer(
-                area as usize,
-                gfx::buffer::Role::Vertex,
-                gfx::memory::Usage::Dynamic,
-                gfx::TRANSFER_DST,
-            )
-            .unwrap();
+        let instances = factory.create_buffer(
+            area as usize,
+            gfx::buffer::Role::Vertex,
+            gfx::memory::Usage::Dynamic,
+            gfx::TRANSFER_DST,
+        )?;
 
 
         let (quad_vertices, mut slice) =
@@ -148,65 +152,67 @@ impl App {
         slice.instances = Some((area, 0));
         let locals = Locals { scale: size };
 
-        App {
+        Ok(App {
             grid: Arc::new(Mutex::new(grid)),
             updates_per_second: updates_per_second,
             window: window,
             device: device,
             events_loop: events_loop,
             // main_depth: main_depth,
-            pso: factory
-                .create_pipeline_simple(
-                    include_bytes!("shaders/instancing.glslv"),
-                    include_bytes!("shaders/instancing.glslf"),
-                    pipe::new(),
-                )
-                .unwrap(),
+            pso: factory.create_pipeline_simple(
+                include_bytes!("shaders/instancing.glslv"),
+                include_bytes!("shaders/instancing.glslf"),
+                pipe::new(),
+            )?,
             encoder: encoder,
             data: pipe::Data {
                 vertex: quad_vertices,
                 instance: instances,
                 scale: size,
-                locals: factory
-                    .create_buffer_immutable(
-                        &[locals],
-                        gfx::buffer::Role::Constant,
-                        gfx::Bind::empty(),
-                    )
-                    .unwrap(),
+                locals: factory.create_buffer_immutable(
+                    &[locals],
+                    gfx::buffer::Role::Constant,
+                    gfx::Bind::empty(),
+                )?,
                 out: main_color,
             },
             instances: insts,
             slice: slice,
             upload: upload,
             uploading: true,
-        }
+        })
     }
 
     #[inline]
-    fn render(&mut self) {
+    fn render(&mut self) -> Result<(), Box<Error>> {
         if self.uploading {
-            self.encoder
-                .copy_buffer(&self.upload, &self.data.instance, 0, 0, self.upload.len())
-                .unwrap();
+            self.encoder.copy_buffer(
+                &self.upload,
+                &self.data.instance,
+                0,
+                0,
+                self.upload.len(),
+            )?;
             self.uploading = false;
         } else {
-            self.update_instances();
-            self.encoder
-                .update_buffer(&self.data.instance, &self.instances, 0)
-                .unwrap();
+            self.update_instances()?;
+            self.encoder.update_buffer(
+                &self.data.instance,
+                &self.instances,
+                0,
+            )?;
         }
         self.encoder.clear(&self.data.out, CLEARING_COLOR);
         self.encoder.draw(&self.slice, &self.pso, &self.data);
         self.encoder.flush(&mut self.device);
-        self.window.swap_buffers().unwrap();
-        self.device.cleanup();
+        self.window.swap_buffers()?;
+        Ok(self.device.cleanup())
     }
 
     #[doc(hidden)]
     #[inline]
-    pub fn update_instances(&mut self) {
-        let grid = self.grid.lock().unwrap();
+    pub fn update_instances(&mut self) -> Result<(), Box<Error>> {
+        let grid = self.grid.lock().map_err(|e| format!("{}", e))?;
         let op =
             |(idx, inst): (usize, &mut Instance)| if let Some(cell) = grid.get_idx(&GridIdx(idx)) {
                 let colour = if cell.alive() { COLOURED } else { WHITE };
@@ -219,24 +225,16 @@ impl App {
                 op((idx, inst));
             }
         }
+
+        Ok(())
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Box<Error>> {
         // Do updates to the grid in another thread.
         {
             let grid = self.grid.clone();
             let updates_per_second = self.updates_per_second;
-            thread::spawn(move || {
-                let wait_duration = Duration::from_millis(1000 / updates_per_second as u64);
-                let mut last_updated = Instant::now();
-                loop {
-                    if last_updated.elapsed() > wait_duration {
-                        let mut grid = grid.lock().unwrap();
-                        grid.advance();
-                        last_updated = Instant::now()
-                    }
-                }
-            });
+            thread::spawn(move || async_update_loop(grid, updates_per_second));
         }
 
         let mut running = true;
@@ -264,7 +262,21 @@ impl App {
                     _ => (),
                 },
             );
-            self.render();
+            self.render()?;
+        }
+        Ok(())
+    }
+}
+
+// Only used so we can use the ? macro...
+fn async_update_loop(grid: Arc<Mutex<Grid>>, updates_per_second: u16) -> Result<(), Box<String>> {
+    let wait_duration = Duration::from_millis(1000 / updates_per_second as u64);
+    let mut last_updated = Instant::now();
+    loop {
+        if last_updated.elapsed() > wait_duration {
+            let mut grid: MutexGuard<Grid> = grid.lock().map_err(|e| format!("{}", e))?;
+            grid.advance();
+            last_updated = Instant::now()
         }
     }
 }
