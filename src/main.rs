@@ -10,13 +10,13 @@ use std::error::Error;
 use std::process::exit;
 
 fn main() {
-    match inner_main() {
-        Ok(_) => exit(0),
+    exit(match inner_main() {
+        Ok(_) => 0,
         Err(err) => {
             println!("{}", err);
-            exit(1)
+            1
         }
-    }
+    })
 }
 
 fn inner_main() -> Result<(), Box<Error>> {

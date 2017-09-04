@@ -234,7 +234,7 @@ impl App {
         {
             let grid = self.grid.clone();
             let updates_per_second = self.updates_per_second;
-            thread::spawn(move||async_update_loop(grid, updates_per_second));
+            thread::spawn(move || async_update_loop(grid, updates_per_second));
         }
 
         let mut running = true;
