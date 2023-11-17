@@ -1,6 +1,6 @@
 [package]
 name = "gol"
-version = "0.1.13"
+version = "0.1.14"
 edition = "2021"
 authors = ["Lloyd <lloydmeta@gmail.com>"]
 description = "Conway's game of life in OpenGL."
