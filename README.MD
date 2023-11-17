@@ -1,4 +1,4 @@
-# Game of Life [![Build Status](https://travis-ci.org/lloydmeta/gol-rs.svg?branch=master)](https://travis-ci.org/lloydmeta/gol-rs)
+# Game of Life [![CI](https://github.com/lloydmeta/gol-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/lloydmeta/gol-rs/actions/workflows/ci.yml)
 
 Conway's Game of Life implemented in Rust and OpenGL via [`gfx-rs`](https://github.com/gfx-rs).
 
