@@ -28,7 +28,6 @@ repos:
           "--",
           "-Dwarnings",
           "-Dclippy::pedantic",
-          "-Dclippy::nursery",
           "-Dclippy::cargo",
           # "Expect many false positives" https://rust-lang.github.io/rust-clippy/master/index.html#must_use_candidate
           "-Aclippy::must_use_candidate",

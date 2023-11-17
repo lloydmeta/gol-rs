@@ -15,15 +15,14 @@ impl Cell {
 
     // Update alive status based on neighbour count
     // https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Rules
-    pub fn update(&mut self, status: Status) -> () {
-        self.0 = status
+    pub fn update(&mut self, status: Status) {
+        self.0 = status;
     }
 
     // Returns the next status given a number of neighbours
-    pub fn next_status(&self, neighbours_cnt: usize) -> Status {
+    pub const fn next_status(&self, neighbours_cnt: usize) -> Status {
         match (&self.0, neighbours_cnt) {
-            (_, 3) => Status::Alive,
-            (&Status::Alive, 2) => Status::Alive,
+            (_, 3) | (&Status::Alive, 2) => Status::Alive,
             _ => Status::Dead,
         }
     }

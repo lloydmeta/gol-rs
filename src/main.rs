@@ -11,9 +11,9 @@ use std::str::FromStr;
 
 fn main() {
     exit(match inner_main() {
-        Ok(_) => 0,
+        Ok(()) => 0,
         Err(err) => {
-            println!("{}", err);
+            println!("{err}");
             1
         }
     })
@@ -76,12 +76,12 @@ fn version() -> String {
         option_env!("CARGO_PKG_VERSION_PATCH"),
     );
     match (maj, min, pat) {
-        (Some(maj), Some(min), Some(pat)) => format!("{}.{}.{}", maj, min, pat),
-        _ => "".to_owned(),
+        (Some(maj), Some(min), Some(pat)) => format!("{maj}.{min}.{pat}"),
+        _ => String::new(),
     }
 }
 
-fn get_number<'a, A>(name: &str, maybe_min: Option<A>, matches: &ArgMatches<'a>) -> A
+fn get_number<A>(name: &str, maybe_min: Option<A>, matches: &ArgMatches<'_>) -> A
 where
     A: FromStr + PartialOrd + Display + Copy,
     <A as FromStr>::Err: std::fmt::Debug,
@@ -102,9 +102,9 @@ where
         .expect(
             &{
                 if let Some(min) = maybe_min {
-                    format!("{} should be a positive number greater than {}.", name, min)
+                    format!("{name} should be a positive number greater than {min}.")
                 } else {
-                    format!("{} should be a positive number.", name)
+                    format!("{name} should be a positive number.")
                 }
             }[..],
         )
