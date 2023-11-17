@@ -68,14 +68,14 @@ jobs:
         id: archive
         shell: bash
         run: |
-          DIRECTORY="ocdscardinal-${{ github.ref_name }}-${{ matrix.build }}"
+          DIRECTORY="gol-${{ github.ref_name }}-${{ matrix.build }}"
           if [[ "${{ matrix.target }}" =~ "-pc-windows-" ]]; then
             SUFFIX=".exe"
           else
             SUFFIX=""
           fi
           mkdir "$DIRECTORY"
-          cp docs/changelog.md LICENSE README.md "target/${{ matrix.target }}/release/ocdscardinal$SUFFIX" "$DIRECTORY"
+          cp LICENCE README.MD "target/${{ matrix.target }}/release/gol$SUFFIX" "$DIRECTORY"
           7z a "$DIRECTORY.zip" "$DIRECTORY"
           echo "path=$DIRECTORY.zip" >> $GITHUB_OUTPUT
       - env:
