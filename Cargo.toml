@@ -8,6 +8,9 @@ license = "MIT"
 homepage = "https://github.com/lloydmeta/gol-rs"
 documentation = "https://docs.rs/gol"
 keywords = [ "OpenGL", "rendering", "gfx-rs", "game-of-life", "Conway" ]
+readme = "README.MD"
+repository = "https://github.com/lloydmeta/gol-rs"
+categories = [ "graphics", "game of life", "conway", "learning" ]
 
 [badges]
 travis-ci = { repository = "lloydmeta/gol-rs" }

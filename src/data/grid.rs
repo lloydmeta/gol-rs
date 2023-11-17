@@ -97,18 +97,6 @@ impl Grid {
         }
     }
 
-    // TODO delete if not used
-    pub const fn to_coord(&self, &GridIdx(idx): &GridIdx) -> Option<Coord> {
-        if idx < self.area() {
-            let width = self.width();
-            let i = idx / width;
-            let j = idx % width;
-            Some(Coord { i, j })
-        } else {
-            None
-        }
-    }
-
     // Returns a slice with references to this grid's cells
     pub fn cells(&self) -> Vec<Vec<&Cell>> {
         let mut rows = Vec::with_capacity(self.height());
@@ -354,19 +342,6 @@ mod tests {
         assert_eq!(grid.to_grid_idx(&Coord { i: 1, j: 2 }), Some(GridIdx(6)));
         assert_eq!(grid.to_grid_idx(&Coord { i: 2, j: 3 }), Some(GridIdx(11)));
         assert_eq!(grid.to_grid_idx(&Coord { i: 3, j: 3 }), None);
-    }
-    /// Given
-    ///
-    /// [ (0,0) (0,1) (0,2) (0, 3) ]
-    /// [ (1,0) (1,1) (1,2) (1, 3) ]
-    /// [ (2,0) (2,1) (2,2) (2, 3) ]
-    #[test]
-    fn test_to_coord() {
-        let grid = Grid::new(4, 3);
-        assert_eq!(grid.to_coord(&GridIdx(0)), Some(Coord { i: 0, j: 0 }));
-        assert_eq!(grid.to_coord(&GridIdx(6)), Some(Coord { i: 1, j: 2 }));
-        assert_eq!(grid.to_coord(&GridIdx(11)), Some(Coord { i: 2, j: 3 }));
-        assert_eq!(grid.to_coord(&GridIdx(12)), None);
     }
 
     fn alive_cells(grid: &Grid) -> Vec<Coord> {
