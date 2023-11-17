@@ -1,4 +1,4 @@
-use super::data::{Grid, GridIdx, PAR_THRESHOLD_AREA};
+use super::data::{Grid, GridIdx};
 use gfx;
 use gfx::traits::FactoryExt;
 use gfx::Device;
@@ -222,7 +222,7 @@ impl App {
                 inst.colour = colour;
             }
         };
-        if grid.area() >= PAR_THRESHOLD_AREA {
+        if grid.area_requires_bool() {
             self.instances.par_iter_mut().enumerate().for_each(op);
         } else {
             for (idx, inst) in self.instances.iter_mut().enumerate() {

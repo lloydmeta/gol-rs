@@ -4,7 +4,7 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
 
-pub const PAR_THRESHOLD_AREA: usize = 250_000;
+const PAR_THRESHOLD_AREA: usize = 250_000;
 
 /// Used for indexing into the grid
 #[allow(clippy::module_name_repetitions)]
@@ -28,6 +28,7 @@ pub struct Grid {
     max_i: usize,
     max_j: usize,
     area: usize,
+    area_requires_bool: bool,
     // Cache of where the neighbours are for each point
     neighbours: Vec<[GridIdx; 8]>,
 }
@@ -66,12 +67,14 @@ impl Grid {
         let cells: Vec<Cell> = grid.into_iter().flatten().collect();
         let scratchpad_cells = cells.clone();
         let area = width * height;
+        let area_requires_bool = area >= PAR_THRESHOLD_AREA;
         Self {
             cells,
             scratchpad_cells,
             max_i,
             max_j,
             area,
+            area_requires_bool,
             neighbours,
         }
     }
@@ -81,11 +84,7 @@ impl Grid {
     ///
     /// TODO: is using iter faster or slower than just doing the checks?
     pub fn get_idx(&self, &GridIdx(idx): &GridIdx) -> Option<&Cell> {
-        if idx < self.cells.len() {
-            Some(&self.cells[idx])
-        } else {
-            None
-        }
+        self.cells.get(idx)
     }
 
     // TODO delete if not used
@@ -124,22 +123,34 @@ impl Grid {
         self.area
     }
 
+    pub const fn area_requires_bool(&self) -> bool {
+        self.area_requires_bool
+    }
+
     pub fn advance(&mut self) {
         {
             let neighbours = &self.neighbours;
             let last_gen = &self.cells;
-            let area_requires_par = self.area() >= PAR_THRESHOLD_AREA;
+            let area_requires_par = self.area_requires_bool();
             let cells = &mut self.scratchpad_cells;
             let cell_op = |(i, cell): (usize, &mut Cell)| {
-                let alives = neighbours[i].iter().fold(0, |acc, &GridIdx(idx)| {
-                    if last_gen[idx].0 == Status::Alive {
-                        acc + 1
-                    } else {
-                        acc
+                if let Some(neighbours_vec) = neighbours.get(i) {
+                    let alives = neighbours_vec.iter().fold(0, |acc, &GridIdx(idx)| {
+                        if let Some(last_gen_status) = last_gen.get(idx) {
+                            if last_gen_status.0 == Status::Alive {
+                                acc + 1
+                            } else {
+                                acc
+                            }
+                        } else {
+                            acc
+                        }
+                    });
+                    if let Some(last_gen_cell) = last_gen.get(i) {
+                        let next_status = last_gen_cell.next_status(alives);
+                        cell.update(next_status);
                     }
-                });
-                let next_status = last_gen[i].next_status(alives);
-                cell.update(next_status);
+                }
             };
             if area_requires_par {
                 cells.par_iter_mut().enumerate().for_each(cell_op);
