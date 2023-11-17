@@ -275,7 +275,7 @@ fn async_update_loop(grid: &Arc<Mutex<Grid>>, updates_per_second: u16) -> Result
     loop {
         if last_updated.elapsed() > wait_duration {
             grid.lock().map_err(|e| format!("{e}"))?.advance();
-            last_updated = Instant::now()
+            last_updated = Instant::now();
         }
     }
 }

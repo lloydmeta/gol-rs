@@ -89,7 +89,7 @@ impl Grid {
     }
 
     // TODO delete if not used
-    pub fn to_grid_idx(&self, &Coord { i, j }: &Coord) -> Option<GridIdx> {
+    pub const fn to_grid_idx(&self, &Coord { i, j }: &Coord) -> Option<GridIdx> {
         if i <= self.max_i && j <= self.max_j {
             Some(GridIdx(self.width() * i + j))
         } else {
@@ -98,7 +98,7 @@ impl Grid {
     }
 
     // TODO delete if not used
-    pub fn to_coord(&self, &GridIdx(idx): &GridIdx) -> Option<Coord> {
+    pub const fn to_coord(&self, &GridIdx(idx): &GridIdx) -> Option<Coord> {
         if idx < self.area() {
             let width = self.width();
             let i = idx / width;
