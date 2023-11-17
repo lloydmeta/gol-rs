@@ -4,9 +4,10 @@ use rand::Rng;
 use rayon::prelude::*;
 use std::mem;
 
-pub const PAR_THRESHOLD_AREA: usize = 250000;
+pub const PAR_THRESHOLD_AREA: usize = 250_000;
 
 /// Used for indexing into the grid
+#[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq, Eq)]
 pub struct GridIdx(pub usize);
 
@@ -39,7 +40,7 @@ pub struct Coord {
 
 impl Grid {
     /// Creates a grid with the given width and height
-    pub fn new(width: usize, height: usize) -> Grid {
+    pub fn new(width: usize, height: usize) -> Self {
         let mut rng = rand::thread_rng();
         // Grid is a matrix with {height} rows and {width} columns, addressed
         // via (i, j) (row, column) convention. Used for finding neightbours because it's
@@ -62,10 +63,10 @@ impl Grid {
         let max_i = if height == 0 { 0 } else { height - 1 };
         let max_j = if width == 0 { 0 } else { width - 1 };
         let neighbours = neighbours(max_i, max_j, &grid);
-        let cells: Vec<Cell> = grid.into_iter().flat_map(|v| v).collect();
+        let cells: Vec<Cell> = grid.into_iter().flatten().collect();
         let scratchpad_cells = cells.clone();
         let area = width * height;
-        Grid {
+        Self {
             cells,
             scratchpad_cells,
             max_i,
@@ -123,19 +124,19 @@ impl Grid {
         rows
     }
 
-    pub fn height(&self) -> usize {
+    pub const fn height(&self) -> usize {
         self.max_i + 1
     }
 
-    pub fn width(&self) -> usize {
+    pub const fn width(&self) -> usize {
         self.max_j + 1
     }
 
-    pub fn area(&self) -> usize {
+    pub const fn area(&self) -> usize {
         self.area
     }
 
-    pub fn advance(&mut self) -> () {
+    pub fn advance(&mut self) {
         {
             let neighbours = &self.neighbours;
             let last_gen = &self.cells;
@@ -156,7 +157,7 @@ impl Grid {
                 cells.par_iter_mut().enumerate().for_each(cell_op);
             } else {
                 for (i, cell) in cells.iter_mut().enumerate() {
-                    cell_op((i, cell))
+                    cell_op((i, cell));
                 }
             }
         }
@@ -169,7 +170,7 @@ fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<[GridIdx; 
     for (i, row) in cells.iter().enumerate() {
         for (j, _) in row.iter().enumerate() {
             let coord = Coord { i, j };
-            v.push(neighbour_coords(max_i, max_j, &coord))
+            v.push(neighbour_coords(max_i, max_j, &coord));
         }
     }
     v
@@ -199,7 +200,7 @@ fn neighbour_coords(max_i: usize, max_j: usize, coord: &Coord) -> [GridIdx; 8] {
         _ => j + 1,
     };
 
-    let north = Coord { i: i_up, j: j };
+    let north = Coord { i: i_up, j };
     let north_east = Coord {
         i: i_up,
         j: j_right,

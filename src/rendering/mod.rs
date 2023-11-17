@@ -1,4 +1,4 @@
-use super::data::*;
+use super::data::{Grid, GridIdx, PAR_THRESHOLD_AREA};
 use gfx;
 use gfx::traits::FactoryExt;
 use gfx::Device;
@@ -9,11 +9,11 @@ use glutin;
 use glutin::dpi::LogicalSize;
 use rayon::prelude::*;
 use std::error::Error;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-const WINDOW_TITLE: &'static str = "Simple Life";
+const WINDOW_TITLE: &str = "Simple Life";
 
 const QUAD_VERTICES: [Vertex; 4] = [
     Vertex {
@@ -89,13 +89,13 @@ fn fill_instances(instances: &mut [Instance], grid: &Grid, size: [[f32; 2]; 2]) 
         for cell in row {
             let colour = if cell.alive() { COLOURED } else { WHITE };
             let inst = Instance { translate, colour };
-            v.push(inst.clone());
+            v.push(inst);
             instances[index] = inst;
             translate[0] += size_x + gap_x;
             index += 1;
         }
         translate[1] += size_y + gap_y;
-        translate[0] = begin_x
+        translate[0] = begin_x;
     }
     v
 }
@@ -117,6 +117,7 @@ pub struct App {
 }
 
 impl App {
+    #[allow(clippy::missing_errors_doc)]
     pub fn new(
         grid: Grid,
         window_width: u32,
@@ -133,9 +134,9 @@ impl App {
             gfx_window_glutin::init::<ColorFormat, DepthFormat>(builder, context, &events_loop)?;
         let encoder = factory.create_command_buffer().into();
 
-        let width: u32 = grid.width() as u32;
-        let height: u32 = grid.height() as u32;
-        let area = grid.area() as u32;
+        let width: u32 = u32::try_from(grid.width())?;
+        let height: u32 = u32::try_from(grid.height())?;
+        let area = u32::try_from(grid.area())?;
 
         let size = [
             [INSTANCE_PORTION / width as f32, 0.],
@@ -160,19 +161,19 @@ impl App {
         slice.instances = Some((area, 0));
         let locals = Locals { scale: size };
 
-        Ok(App {
+        Ok(Self {
             grid: Arc::new(Mutex::new(grid)),
-            updates_per_second: updates_per_second,
-            window: window,
-            device: device,
-            events_loop: events_loop,
+            updates_per_second,
+            window,
+            device,
+            events_loop,
             // main_depth: main_depth,
             pso: factory.create_pipeline_simple(
                 include_bytes!("shaders/instancing.glslv"),
                 include_bytes!("shaders/instancing.glslf"),
                 pipe::new(),
             )?,
-            encoder: encoder,
+            encoder,
             data: pipe::Data {
                 vertex: quad_vertices,
                 instance: instances,
@@ -185,8 +186,8 @@ impl App {
                 out: main_color,
             },
             instances: insts,
-            slice: slice,
-            upload: upload,
+            slice,
+            upload,
             uploading: true,
         })
     }
@@ -206,17 +207,19 @@ impl App {
         self.encoder.draw(&self.slice, &self.pso, &self.data);
         self.encoder.flush(&mut self.device);
         self.window.swap_buffers()?;
-        Ok(self.device.cleanup())
+        self.device.cleanup();
+        Ok(())
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     #[doc(hidden)]
     #[inline]
     pub fn update_instances(&mut self) -> Result<(), Box<dyn Error>> {
-        let grid = self.grid.lock().map_err(|e| format!("{}", e))?;
+        let grid = self.grid.lock().map_err(|e| format!("{e}"))?;
         let op = |(idx, inst): (usize, &mut Instance)| {
             if let Some(cell) = grid.get_idx(&GridIdx(idx)) {
                 let colour = if cell.alive() { COLOURED } else { WHITE };
-                inst.colour = colour
+                inst.colour = colour;
             }
         };
         if grid.area() >= PAR_THRESHOLD_AREA {
@@ -226,25 +229,25 @@ impl App {
                 op((idx, inst));
             }
         }
-
         Ok(())
     }
 
+    #[allow(clippy::missing_errors_doc)]
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
         // Do updates to the grid in another thread.
         {
             let grid = self.grid.clone();
             let updates_per_second = self.updates_per_second;
-            thread::spawn(move || async_update_loop(grid, updates_per_second));
+            thread::spawn(move || async_update_loop(&grid, updates_per_second));
         }
 
         let mut running = true;
         while running {
             // fetch events
             let currently_uploading = self.uploading;
-            self.events_loop
-                .poll_events(|polled_event| match polled_event {
-                    glutin::Event::WindowEvent { event, .. } => match event {
+            self.events_loop.poll_events(|polled_event| {
+                if let glutin::Event::WindowEvent { event, .. } = polled_event {
+                    match event {
                         glutin::WindowEvent::KeyboardInput {
                             input:
                                 glutin::KeyboardInput {
@@ -256,9 +259,9 @@ impl App {
                         | glutin::WindowEvent::CloseRequested => running = false,
                         glutin::WindowEvent::Resized(_) => running = currently_uploading,
                         _ => {}
-                    },
-                    _ => (),
-                });
+                    }
+                }
+            });
             self.render()?;
         }
         Ok(())
@@ -266,13 +269,12 @@ impl App {
 }
 
 // Only used so we can use the ? macro...
-fn async_update_loop(grid: Arc<Mutex<Grid>>, updates_per_second: u16) -> Result<(), Box<String>> {
-    let wait_duration = Duration::from_millis(1000 / updates_per_second as u64);
+fn async_update_loop(grid: &Arc<Mutex<Grid>>, updates_per_second: u16) -> Result<(), String> {
+    let wait_duration = Duration::from_millis(1000 / u64::from(updates_per_second));
     let mut last_updated = Instant::now();
     loop {
         if last_updated.elapsed() > wait_duration {
-            let mut grid: MutexGuard<Grid> = grid.lock().map_err(|e| format!("{}", e))?;
-            grid.advance();
+            grid.lock().map_err(|e| format!("{e}"))?.advance();
             last_updated = Instant::now()
         }
     }
