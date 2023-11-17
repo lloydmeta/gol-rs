@@ -1,13 +1,13 @@
-extern crate gol;
 extern crate clap;
+extern crate gol;
 
-use gol::rendering;
+use clap::{App, Arg, ArgMatches};
 use gol::data::Grid;
-use clap::{Arg, App, ArgMatches};
-use std::str::FromStr;
-use std::fmt::Display;
+use gol::rendering;
 use std::error::Error;
+use std::fmt::Display;
 use std::process::exit;
+use std::str::FromStr;
 
 fn main() {
     exit(match inner_main() {
@@ -19,7 +19,7 @@ fn main() {
     })
 }
 
-fn inner_main() -> Result<(), Box<Error>> {
+fn inner_main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("Game of Life")
         .version(version().as_ref())
         .about("Conway's Game of Life in OpenGL!")
@@ -90,7 +90,13 @@ where
         .value_of(name)
         .and_then(|s| s.parse::<A>().ok())
         .and_then(|u| match maybe_min {
-            Some(min) => if u > min { Some(u) } else { None },
+            Some(min) => {
+                if u > min {
+                    Some(u)
+                } else {
+                    None
+                }
+            }
             _ => Some(u),
         })
         .expect(
@@ -100,7 +106,6 @@ where
                 } else {
                     format!("{} should be a positive number.", name)
                 }
-            }
-                [..],
+            }[..],
         )
 }
