@@ -1,4 +1,3 @@
-
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Clone)]
 pub enum Status {
     Dead,

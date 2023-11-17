@@ -1,4 +1,4 @@
-use data::cell::{Cell, Status};
+use super::cell::{Cell, Status};
 use rand;
 use rand::Rng;
 use rayon::prelude::*;
@@ -41,9 +41,9 @@ impl Grid {
     /// Creates a grid with the given width and height
     pub fn new(width: usize, height: usize) -> Grid {
         let mut rng = rand::thread_rng();
-        /// Grid is a matrix with {height} rows and {width} columns, addressed
-        /// via (i, j) (row, column) convention. Used for finding neightbours because it's
-        /// just an easier mental model to work with for that problem. It gets flattened later.
+        // Grid is a matrix with {height} rows and {width} columns, addressed
+        // via (i, j) (row, column) convention. Used for finding neightbours because it's
+        // just an easier mental model to work with for that problem. It gets flattened later.
         let mut grid = Vec::with_capacity(height);
         for _ in 0..height {
             let mut row = Vec::with_capacity(width);
@@ -142,15 +142,13 @@ impl Grid {
             let area_requires_par = self.area() >= PAR_THRESHOLD_AREA;
             let cells = &mut self.scratchpad_cells;
             let cell_op = |(i, cell): (usize, &mut Cell)| {
-                let alives =
-                    neighbours[i].iter().fold(
-                        0,
-                        |acc, &GridIdx(idx)| if last_gen[idx].0 == Status::Alive {
-                            acc + 1
-                        } else {
-                            acc
-                        },
-                    );
+                let alives = neighbours[i].iter().fold(0, |acc, &GridIdx(idx)| {
+                    if last_gen[idx].0 == Status::Alive {
+                        acc + 1
+                    } else {
+                        acc
+                    }
+                });
                 let next_status = last_gen[i].next_status(alives);
                 cell.update(next_status);
             };
@@ -173,7 +171,6 @@ fn neighbours(max_i: usize, max_j: usize, cells: &[Vec<Cell>]) -> Vec<[GridIdx; 
             let coord = Coord { i, j };
             v.push(neighbour_coords(max_i, max_j, &coord))
         }
-
     }
     v
 }
@@ -230,7 +227,6 @@ fn neighbour_coords(max_i: usize, max_j: usize, coord: &Coord) -> [GridIdx; 8] {
         to_grid_idx(north_west),
     ]
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -307,9 +303,10 @@ mod tests {
                 Cell(Status::Alive),
                 Cell(Status::Alive),
             ],
-        ].into_iter()
-            .flat_map(|v| v)
-            .collect();
+        ]
+        .into_iter()
+        .flat_map(|v| v)
+        .collect();
         grid.cells = new_cells;
         assert_eq!(alive_count(&grid), 8)
     }
@@ -317,22 +314,22 @@ mod tests {
     #[test]
     fn test_get_idx() {
         let mut grid = Grid::new(3, 3);
-        let new_cells: Vec<Cell> =
+        let new_cells: Vec<Cell> = vec![
             vec![
-                vec![
-                    Cell(Status::Alive),
-                    Cell(Status::Alive),
-                    Cell(Status::Alive),
-                ],
-                vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
-                vec![
-                    Cell(Status::Alive),
-                    Cell(Status::Alive),
-                    Cell(Status::Alive),
-                ],
-            ].into_iter()
-                .flat_map(|v| v)
-                .collect();
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+            ],
+            vec![Cell(Status::Alive), Cell(Status::Dead), Cell(Status::Alive)],
+            vec![
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+                Cell(Status::Alive),
+            ],
+        ]
+        .into_iter()
+        .flat_map(|v| v)
+        .collect();
         grid.cells = new_cells;
         for idx in 0..9 {
             let cell = grid.get_idx(&GridIdx(idx)).unwrap();
@@ -341,7 +338,6 @@ mod tests {
             } else {
                 assert!(!cell.alive())
             }
-
         }
     }
 
@@ -388,6 +384,4 @@ mod tests {
     fn alive_count(grid: &Grid) -> usize {
         alive_cells(grid).len()
     }
-
-
 }
